@@ -1,0 +1,6 @@
+{
+  "name": "KOFIC Daily Box Office",
+  "description": "daily box office viewer using KOFIC API",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
