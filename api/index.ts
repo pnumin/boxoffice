@@ -80,7 +80,17 @@ app.post("/api/generate-review", async (req, res) => {
     res.json({ review: response.text });
   } catch (error: any) {
     console.error("Gemini API error:", error);
-    res.status(500).json({ error: error.message || "Failed to generate review" });
+    let errorMessage = "감상평 생성 중 오류가 발생했습니다.";
+    if (error.message) {
+      if (error.message.includes("leaked")) {
+        errorMessage = "입력하신 Gemini API 키가 유출되어 사용이 차단되었습니다. AI Studio 좌측/상단 메뉴의 Settings(⚙️) > Secrets 에서 새로운 API 키로 교체해주세요.";
+      } else if (error.message.includes("API key not valid") || error.message.includes("API_KEY_INVALID")) {
+        errorMessage = "Gemini API 키가 유효하지 않습니다. Settings > Secrets 메뉴에서 올바른 API 키를 설정해주세요.";
+      } else {
+        errorMessage = error.message;
+      }
+    }
+    res.status(500).json({ error: errorMessage });
   }
 });
 
