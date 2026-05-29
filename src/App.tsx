@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BoxOfficeMovie, MovieDetail } from './types';
-import { Moon, Sun, Calendar, Info, X, TrendingUp, Users, Film, Clock, Globe } from 'lucide-react';
+import { Moon, Sun, Calendar, Info, X, TrendingUp, Users, Film, Clock, Globe, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 function formatDateForApi(dateStr: string) {
@@ -27,6 +27,12 @@ export default function App() {
   const [selectedMovie, setSelectedMovie] = useState<MovieDetail | null>(null);
   const [loadingModal, setLoadingModal] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Review states
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [keywords, setKeywords] = useState({ k1: '', k2: '', k3: '' });
+  const [generatedReview, setGeneratedReview] = useState<string | null>(null);
+  const [showReviewForm, setShowReviewForm] = useState(false);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -61,6 +67,9 @@ export default function App() {
   const handleMovieClick = async (movieCd: string) => {
     setModalOpen(true);
     setLoadingModal(true);
+    setShowReviewForm(false);
+    setGeneratedReview(null);
+    setKeywords({ k1: '', k2: '', k3: '' });
     try {
       const res = await fetch(`/api/movie/${movieCd}`);
       if (res.ok) {
@@ -71,6 +80,34 @@ export default function App() {
       console.error(err);
     } finally {
       setLoadingModal(false);
+    }
+  };
+
+  const handleGenerateReview = async () => {
+    if (!selectedMovie || !keywords.k1 || !keywords.k2 || !keywords.k3) return;
+    setReviewLoading(true);
+    try {
+      const res = await fetch("/api/generate-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          movieName: selectedMovie.movieNm,
+          keyword1: keywords.k1,
+          keyword2: keywords.k2,
+          keyword3: keywords.k3,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setGeneratedReview(data.review);
+      } else {
+        setGeneratedReview(data.error || "Failed to generate review. Please try again.");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setGeneratedReview(err.message || "An error occurred while generating the review.");
+    } finally {
+      setReviewLoading(false);
     }
   };
 
@@ -265,6 +302,99 @@ export default function App() {
                         </p>
                       </div>
                     </div>
+                  </div>
+
+                  {/* AI Review Generator section */}
+                  <div className="mt-10 pt-8 border-t border-slate-200 dark:border-slate-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-amber-500" /> AI 감상평 생성기
+                      </h3>
+                      {!showReviewForm && !generatedReview && (
+                        <button
+                          onClick={() => setShowReviewForm(true)}
+                          className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-400 dark:hover:bg-indigo-900/50 rounded-lg text-sm font-semibold transition-colors"
+                        >
+                          감상평 만들기
+                        </button>
+                      )}
+                    </div>
+
+                    {(showReviewForm || generatedReview) && (
+                      <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-5 border border-slate-100 dark:border-slate-800">
+                        {!generatedReview && (
+                          <div className="space-y-4">
+                            <p className="text-sm text-slate-500 dark:text-slate-400">
+                              감상평에 포함할 핵심 단어(키워드) 3가지를 입력하면 AI가 정성스러운 감상평을 작성해줍니다.
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <input
+                                type="text"
+                                placeholder="예: 반전"
+                                value={keywords.k1}
+                                onChange={(e) => setKeywords({ ...keywords, k1: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                              <input
+                                type="text"
+                                placeholder="예: 연출"
+                                value={keywords.k2}
+                                onChange={(e) => setKeywords({ ...keywords, k2: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                              <input
+                                type="text"
+                                placeholder="예: 감동"
+                                value={keywords.k3}
+                                onChange={(e) => setKeywords({ ...keywords, k3: e.target.value })}
+                                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                              <button
+                                onClick={() => setShowReviewForm(false)}
+                                className="px-4 py-2 text-sm font-medium text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                              >
+                                취소
+                              </button>
+                              <button
+                                onClick={handleGenerateReview}
+                                disabled={!keywords.k1 || !keywords.k2 || !keywords.k3 || reviewLoading}
+                                className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center gap-2"
+                              >
+                                {reviewLoading ? (
+                                  <>
+                                    <span className="w-4 h-4 border-2 border-white/20 border-b-white rounded-full animate-spin"></span>
+                                    생성 중...
+                                  </>
+                                ) : (
+                                  '작성하기'
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {generatedReview && (
+                          <div className="space-y-4">
+                            <div className="prose prose-sm dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap font-sans">
+                              {generatedReview}
+                            </div>
+                            <div className="flex justify-end pt-2">
+                              <button
+                                onClick={() => {
+                                  setGeneratedReview(null);
+                                  setShowReviewForm(true);
+                                }}
+                                className="text-sm text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                              >
+                                다시 작성하기
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ) : (
